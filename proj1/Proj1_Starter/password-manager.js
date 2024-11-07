@@ -1,124 +1,132 @@
 "use strict";
 
-/********* External Imports ********/
-
 const { stringToBuffer, bufferToString, encodeBuffer, decodeBuffer, getRandomBytes } = require("./lib");
 const { subtle } = require('crypto').webcrypto;
 
-/********* Constants ********/
+const PBKDF2_ITERATIONS = 100000;
 
-const PBKDF2_ITERATIONS = 100000; // number of iterations for PBKDF2 algorithm
-const MAX_PASSWORD_LENGTH = 64;   // we can assume no password is longer than this many characters
-
-/********* Implementation ********/
 class Keychain {
-  /**
-   * Initializes the keychain using the provided information. Note that external
-   * users should likely never invoke the constructor directly and instead use
-   * either Keychain.init or Keychain.load. 
-   * Arguments:
-   *  You may design the constructor with any parameters you would like. 
-   * Return Type: void
-   */
-  constructor() {
-    this.data = { 
-      /* Store member variables that you intend to be public here
-         (i.e. information that will not compromise security if an adversary sees) */
-    };
-    this.secrets = {
-      /* Store member variables that you intend to be private here
-         (information that an adversary should NOT see). */
-    };
+    constructor() {
+        this.data = {
+            kvs: {},      // Encrypted key-value pairs with hashed keys
+            salt: null    // Salt used for master key derivation
+        };
+        this.secrets = {};
+    }
 
-    throw "Not Implemented!";
-  };
+    static async init(password) {
+        const keychain = new Keychain();
+        const salt = getRandomBytes(16);
+        const passwordBuffer = stringToBuffer(password);
 
-  /** 
-    * Creates an empty keychain with the given password.
-    *
-    * Arguments:
-    *   password: string
-    * Return Type: void
-    */
-  static async init(password) {
-    throw "Not Implemented!";
-  }
+        const baseKey = await subtle.importKey("raw", passwordBuffer, { name: "PBKDF2" }, false, ["deriveKey"]);
 
-  /**
-    * Loads the keychain state from the provided representation (repr). The
-    * repr variable will contain a JSON encoded serialization of the contents
-    * of the KVS (as returned by the dump function). The trustedDataCheck
-    * is an *optional* SHA-256 checksum that can be used to validate the 
-    * integrity of the contents of the KVS. If the checksum is provided and the
-    * integrity check fails, an exception should be thrown. You can assume that
-    * the representation passed to load is well-formed (i.e., it will be
-    * a valid JSON object).Returns a Keychain object that contains the data
-    * from repr. 
-    *
-    * Arguments:
-    *   password:           string
-    *   repr:               string
-    *   trustedDataCheck: string
-    * Return Type: Keychain
-    */
-  static async load(password, repr, trustedDataCheck) {
-    throw "Not Implemented!";
-  };
+        keychain.secrets.masterKey = await subtle.deriveKey(
+            { name: "PBKDF2", hash: "SHA-256", salt: salt, iterations: PBKDF2_ITERATIONS },
+            baseKey,
+            { name: "AES-GCM", length: 256 },
+            true,
+            ["encrypt", "decrypt"]
+        );
 
-  /**
-    * Returns a JSON serialization of the contents of the keychain that can be 
-    * loaded back using the load function. The return value should consist of
-    * an array of two strings:
-    *   arr[0] = JSON encoding of password manager
-    *   arr[1] = SHA-256 checksum (as a string)
-    * As discussed in the handout, the first element of the array should contain
-    * all of the data in the password manager. The second element is a SHA-256
-    * checksum computed over the password manager to preserve integrity.
-    *
-    * Return Type: array
-    */ 
-  async dump() {
-    throw "Not Implemented!";
-  };
+        keychain.data.salt = salt;
+        return keychain;
+    }
 
-  /**
-    * Fetches the data (as a string) corresponding to the given domain from the KVS.
-    * If there is no entry in the KVS that matches the given domain, then return
-    * null.
-    *
-    * Arguments:
-    *   name: string
-    * Return Type: Promise<string>
-    */
-  async get(name) {
-    throw "Not Implemented!";
-  };
+    static async load(password, repr, trustedDataCheck) {
+        const keychain = new Keychain();
+        const parsedData = JSON.parse(repr);
+        const salt = new Uint8Array(Object.values(parsedData.salt));
 
-  /** 
-  * Inserts the domain and associated data into the KVS. If the domain is
-  * already in the password manager, this method should update its value. If
-  * not, create a new entry in the password manager.
-  *
-  * Arguments:
-  *   name: string
-  *   value: string
-  * Return Type: void
-  */
-  async set(name, value) {
-    throw "Not Implemented!";
-  };
+        const passwordBuffer = stringToBuffer(password);
+        const baseKey = await subtle.importKey("raw", passwordBuffer, { name: "PBKDF2" }, false, ["deriveKey"]);
 
-  /**
-    * Removes the record with name from the password manager. Returns true
-    * if the record with the specified name is removed, false otherwise.
-    *
-    * Arguments:
-    *   name: string
-    * Return Type: Promise<boolean>
-  */
-  async remove(name) {
-    throw "Not Implemented!";
-  };
-};
+        keychain.secrets.masterKey = await subtle.deriveKey(
+            { name: "PBKDF2", hash: "SHA-256", salt: salt, iterations: PBKDF2_ITERATIONS },
+            baseKey,
+            { name: "AES-GCM", length: 256 },
+            true,
+            ["encrypt", "decrypt"]
+        );
 
-module.exports = { Keychain }
+        // Verify data integrity with the checksum if provided
+        if (trustedDataCheck) {
+            const checksum = await subtle.digest("SHA-256", stringToBuffer(repr));
+            if (encodeBuffer(checksum) !== trustedDataCheck) {
+                throw new Error("Checksum does not match, possible tampering!");
+            }
+        }
+
+        keychain.data.kvs = parsedData.kvs;
+        keychain.data.salt = salt;
+        return keychain;
+    }
+
+    async dump() {
+        const kvsSerialized = JSON.stringify({ kvs: this.data.kvs, salt: encodeBuffer(this.data.salt) });
+        const checksumBuffer = await subtle.digest("SHA-256", stringToBuffer(kvsSerialized));
+        const checksum = encodeBuffer(checksumBuffer);
+
+        return [kvsSerialized, checksum];
+    }
+
+    async set(name, value) {
+        const iv = getRandomBytes(12); // IV for AES-GCM
+        const valueBuffer = stringToBuffer(value);
+
+        // Hash the domain name to avoid storing it in clear
+        const nameHashBuffer = await subtle.digest("SHA-256", stringToBuffer(name));
+        const nameHash = encodeBuffer(new Uint8Array(nameHashBuffer));
+
+        // Encrypt the password using AES-GCM
+        const encryptedValue = await subtle.encrypt(
+            { name: "AES-GCM", iv: iv },
+            this.secrets.masterKey,
+            valueBuffer
+        );
+
+        // Store the encrypted value and IV in kvs using the hashed name as the key
+        this.data.kvs[nameHash] = {
+            iv: encodeBuffer(iv),
+            value: encodeBuffer(new Uint8Array(encryptedValue))
+        };
+    }
+
+    async get(name) {
+        // Hash the domain name to retrieve the encrypted data
+        const nameHashBuffer = await subtle.digest("SHA-256", stringToBuffer(name));
+        const nameHash = encodeBuffer(new Uint8Array(nameHashBuffer));
+        
+        const entry = this.data.kvs[nameHash];
+        if (!entry) return null;
+
+        const iv = decodeBuffer(entry.iv);
+        const encryptedValue = decodeBuffer(entry.value);
+
+        try {
+            const decryptedValue = await subtle.decrypt(
+                { name: "AES-GCM", iv: iv },
+                this.secrets.masterKey,
+                encryptedValue
+            );
+
+            return bufferToString(decryptedValue);
+        } catch (error) {
+            // Handle decryption errors (e.g., incorrect key)
+            throw new Error("Failed to decrypt data. Possible incorrect password.");
+        }
+    }
+
+    async remove(name) {
+        const nameHashBuffer = await subtle.digest("SHA-256", stringToBuffer(name));
+        const nameHash = encodeBuffer(new Uint8Array(nameHashBuffer));
+
+        if (this.data.kvs.hasOwnProperty(nameHash)) {
+            delete this.data.kvs[nameHash];
+            return true;
+        }
+        return false;
+    }
+}
+
+module.exports = { Keychain };
