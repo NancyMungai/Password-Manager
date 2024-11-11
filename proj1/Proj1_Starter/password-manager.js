@@ -36,11 +36,13 @@ class Keychain {
     static async load(password, repr, trustedDataCheck) {
         const keychain = new Keychain();
         const parsedData = JSON.parse(repr);
-        const salt = new Uint8Array(Object.values(parsedData.salt));
-
+        
+        // Decode the stored salt from Base64
+        const salt = decodeBuffer(parsedData.salt);
         const passwordBuffer = stringToBuffer(password);
         const baseKey = await subtle.importKey("raw", passwordBuffer, { name: "PBKDF2" }, false, ["deriveKey"]);
 
+        // Derive the master key using PBKDF2 with the decoded salt
         keychain.secrets.masterKey = await subtle.deriveKey(
             { name: "PBKDF2", hash: "SHA-256", salt: salt, iterations: PBKDF2_ITERATIONS },
             baseKey,
@@ -49,21 +51,41 @@ class Keychain {
             ["encrypt", "decrypt"]
         );
 
-        // Verify data integrity with the checksum if provided
+        // Verify data integrity using SHA-256 checksum if provided
         if (trustedDataCheck) {
-            const checksum = await subtle.digest("SHA-256", stringToBuffer(repr));
-            if (encodeBuffer(checksum) !== trustedDataCheck) {
-                throw new Error("Checksum does not match, possible tampering!");
+            const checksumBuffer = await subtle.digest("SHA-256", stringToBuffer(repr));
+            const computedChecksum = encodeBuffer(checksumBuffer);
+            if (computedChecksum !== trustedDataCheck) {
+                throw new Error("Checksum does not match, possible data tampering!");
             }
         }
 
-        keychain.data.kvs = parsedData.kvs;
-        keychain.data.salt = salt;
-        return keychain;
+       // Perform a quick decryption to verify the password (e.g., using a known entry)
+    try {
+        // Attempt to decrypt one of the entries to verify the password
+        const testEntry = Object.values(parsedData.kvs)[0];
+        if (testEntry) {
+            const iv = decodeBuffer(testEntry.iv);
+            const encryptedValue = decodeBuffer(testEntry.value);
+            await subtle.decrypt({ name: "AES-GCM", iv: iv }, keychain.secrets.masterKey, encryptedValue);
+        }
+    } catch (error) {
+        throw new Error("Incorrect password provided.");
     }
 
+    keychain.data.kvs = parsedData.kvs;
+    keychain.data.salt = salt;
+    return keychain;
+}
+
     async dump() {
-        const kvsSerialized = JSON.stringify({ kvs: this.data.kvs, salt: encodeBuffer(this.data.salt) });
+        // Serialize data and convert salt to Base64
+        const kvsSerialized = JSON.stringify({
+            kvs: this.data.kvs,
+            salt: encodeBuffer(this.data.salt)
+        });
+
+        // Compute SHA-256 checksum
         const checksumBuffer = await subtle.digest("SHA-256", stringToBuffer(kvsSerialized));
         const checksum = encodeBuffer(checksumBuffer);
 
