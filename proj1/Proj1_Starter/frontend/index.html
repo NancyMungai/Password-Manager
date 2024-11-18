@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Password Manager</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
  
@@ -24,26 +24,33 @@
         <ul id="passwords"></ul>
       </div>
     </main>
-  </div>
-  <form id="init-form">
+  
+  <div class="form-section">
+  <form id="init-form" class="inline-form">
     <label for="master-password">Master Password:</label>
     <input type="password" id="master-password" required />
     <button type="submit">Initialize</button>
 </form>
+</div>
 
-<form id="set-form">
+<div class="form-section">
+<form id="set-form" class="inline-form">
     <label for="domain">Domain:</label>
     <input type="text" id="domain" required />
     <label for="password">Password:</label>
     <input type="text" id="password" required />
     <button type="submit">Save Password</button>
 </form>
+</div>
 
-<form id="get-form">
+<div class="form-section">
+<form id="get-form" class="inline-form">
     <label for="retrieve-domain">Domain:</label>
     <input type="text" id="retrieve-domain" required />
     <button type="submit">Retrieve Password</button>
 </form>
+</div>
+</div>
   <script src="app.js" defer></script>
 </body>
 </html>
