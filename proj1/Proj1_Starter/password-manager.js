@@ -2,20 +2,25 @@
 
 const { stringToBuffer, bufferToString, encodeBuffer, decodeBuffer, getRandomBytes } = require("./lib");
 const { subtle } = require('crypto').webcrypto;
+require('dotenv').config();
+const MASTER_PASSWORD = process.env.MASTER_PASSWORD;
 
 const PBKDF2_ITERATIONS = 100000;
 
 class Keychain {
-    constructor() {
+    constructor(iterations = PBKDF2_ITERATIONS) {
         this.data = {
             kvs: {},      // Encrypted key-value pairs with hashed keys
-            salt: null    // Salt used for master key derivation
+            salt: null ,   // Salt used for master key derivation
+            domains: {}  
+         
         };
         this.secrets = {};
+        this.iterations = iterations;
     }
 
-    static async init(password) {
-        const keychain = new Keychain();
+    static async init(password,  iterations = PBKDF2_ITERATIONS) {
+        const keychain = new Keychain(iterations);
         const salt = getRandomBytes(16);
         const passwordBuffer = stringToBuffer(password);
 
@@ -28,13 +33,21 @@ class Keychain {
             true,
             ["encrypt", "decrypt"]
         );
+ // Derive HMAC key for swap attack defense
+        keychain.secrets.hmacKey = await subtle.deriveKey(
+            { name: "PBKDF2", hash: "SHA-256", salt: salt, iterations },
+            baseKey,
+            { name: "HMAC", hash: "SHA-256", length: 256 },
+            true,
+            ["sign", "verify"]
+        );
 
         keychain.data.salt = salt;
         return keychain;
     }
 
-    static async load(password, repr, trustedDataCheck) {
-        const keychain = new Keychain();
+    static async load(password, repr, trustedDataCheck,  iterations = PBKDF2_ITERATIONS) {
+        const keychain = new Keychain(iterations);
         const parsedData = JSON.parse(repr);
         
         // Decode the stored salt from Base64
@@ -50,6 +63,13 @@ class Keychain {
             true,
             ["encrypt", "decrypt"]
         );
+        keychain.secrets.hmacKey = await subtle.deriveKey(
+            { name: "PBKDF2", hash: "SHA-256", salt: salt, iterations },
+            baseKey,
+            { name: "HMAC", hash: "SHA-256", length: 256 },
+            true,
+            ["sign", "verify"]
+        );
 
         // Verify data integrity using SHA-256 checksum if provided
         if (trustedDataCheck) {
@@ -59,6 +79,7 @@ class Keychain {
                 throw new Error("Checksum does not match, possible data tampering!");
             }
         }
+        
 
        // Perform a quick decryption to verify the password (e.g., using a known entry)
     try {
@@ -74,6 +95,7 @@ class Keychain {
     }
 
     keychain.data.kvs = parsedData.kvs;
+    keychain.data.domains = parsedData.domains;
     keychain.data.salt = salt;
     return keychain;
 }
@@ -82,6 +104,7 @@ class Keychain {
         // Serialize data and convert salt to Base64
         const kvsSerialized = JSON.stringify({
             kvs: this.data.kvs,
+            domains: this.data.domains,
             salt: encodeBuffer(this.data.salt)
         });
 
@@ -107,11 +130,32 @@ class Keychain {
             valueBuffer
         );
 
+        const hmac = await subtle.sign(
+            { name: "HMAC" },
+            this.secrets.hmacKey,
+            nameHashBuffer
+        );
+
+          // Encrypt the domain name
+          const domainIv = getRandomBytes(12);
+          const encryptedDomain = await subtle.encrypt(
+              { name: "AES-GCM", iv: domainIv },
+              this.secrets.masterKey,
+              stringToBuffer(name)
+          );
+
         // Store the encrypted value and IV in kvs using the hashed name as the key
         this.data.kvs[nameHash] = {
             iv: encodeBuffer(iv),
-            value: encodeBuffer(new Uint8Array(encryptedValue))
+            value: encodeBuffer(new Uint8Array(encryptedValue)),
+            hmac: encodeBuffer(new Uint8Array(hmac)),
+            domainIv: encodeBuffer(domainIv)
+
         };
+          // Store the encrypted domain name
+          this.data.domains[nameHash] = encodeBuffer(new Uint8Array(encryptedDomain));
+          console.log(`Password for domain '${name}' has been set.`);
+      
     }
 
     async get(name) {
@@ -122,10 +166,23 @@ class Keychain {
         const entry = this.data.kvs[nameHash];
         if (!entry) return null;
 
+        if (!entry.hmac) throw new Error("HMAC is missing for the entry.");
+        
+        const hmacValid = await subtle.verify(
+            { name: "HMAC" },
+            this.secrets.hmacKey,
+            decodeBuffer(entry.hmac),
+            nameHashBuffer
+        );
+
+        if (!hmacValid) 
+            throw new Error("Data integrity check failed! Potential swap attack detected.");
+        
+
         const iv = decodeBuffer(entry.iv);
         const encryptedValue = decodeBuffer(entry.value);
 
-        try {
+       
             const decryptedValue = await subtle.decrypt(
                 { name: "AES-GCM", iv: iv },
                 this.secrets.masterKey,
@@ -133,10 +190,38 @@ class Keychain {
             );
 
             return bufferToString(decryptedValue);
-        } catch (error) {
-            // Handle decryption errors (e.g., incorrect key)
-            throw new Error("Failed to decrypt data. Possible incorrect password.");
+       
+    }
+    async getAll() {
+        const allEntries = [];
+        for (const hashedDomain in this.data.kvs) {
+            const entry = this.data.kvs[hashedDomain];
+            const encryptedDomain = this.data.domains[hashedDomain];
+            if (encryptedDomain) {
+                // Decrypt domain name
+                const domainIv = decodeBuffer(entry.domainIv);
+                const decryptedDomainBuffer = await subtle.decrypt(
+                    { name: "AES-GCM", iv: domainIv },
+                    this.secrets.masterKey,
+                    decodeBuffer(encryptedDomain)
+                );
+                const domain = bufferToString(decryptedDomainBuffer);
+
+                // Decrypt password
+                const iv = decodeBuffer(entry.iv);
+                const encryptedValue = decodeBuffer(entry.value);
+                const decryptedValue = await subtle.decrypt(
+                    { name: "AES-GCM", iv: iv },
+                    this.secrets.masterKey,
+                    encryptedValue
+                );
+                const password = bufferToString(decryptedValue);
+
+                allEntries.push({ domain, password });
+            }
         }
+        console.log(`Retrieved all entries:`, allEntries);
+        return allEntries;
     }
 
     async remove(name) {
