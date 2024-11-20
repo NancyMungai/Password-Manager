@@ -1,0 +1,106 @@
+*{
+  margin: 0px;
+  padding: 0px;
+  box-sizing:border-box;
+  font-family: 'Heebo', sans-serif;
+  /* font-family: sans-serif; */
+  outline: none;
+}
+
+.link-button {
+  text-decoration: none;
+  color:black;
+  font-family: sans-serif;
+  font-weight:900 !important;
+  font-size: 0.8rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+body{
+  background-image: linear-gradient(200deg,#ffef12, rgb(230, 0, 69) 30%, #002fff);
+}
+
+h1, h5, h6 {
+  color: white;
+  font-weight: bold ;
+}
+
+.main{
+  height: 100vh;
+  text-align: center;
+  padding: 27px;
+  padding-top: 20vh;
+}
+
+.input-buttons{
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.register-cred, .login-cred{
+  margin: 5vh 0px;
+  display:block;
+  height: 30px;
+  width: 100%;
+  border: black thin;
+  border-radius: 5px;
+  padding: 10px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  transition: ease 0.2s;
+}
+
+.register-cred:hover, .login-cred:hover{
+  outline: solid rgb(0, 0, 0) medium;
+}
+
+.register-cred:focus, .login-cred:focus{
+  outline: solid rgb(24, 202, 0) medium;
+}
+
+.lgn{
+  margin: 5vh auto;
+  max-width: 400px;
+}
+
+.btn {
+  font-family: sans-serif;
+  background-color: white;
+  border: 1px rgb(255, 255, 255) solid;
+  border-radius: 4px;
+  height: 30px;
+  width: 47%;
+  font-weight:900;
+  transition: ease 0.2s;
+}
+
+.register {
+  width: 100% !important;
+}
+
+.btn:hover {
+  background-color: black;
+  color: white;
+}
+
+.btn:active {
+  border: 3px rgb(24, 233, 24) solid;
+}
+
+.btn:focus {
+  border: 3px rgb(255, 0, 157) solid;
+  color: rgb(255, 0, 157);
+}
+
+.links{
+  text-decoration: underline;
+  color: yellow;
+}
+
+.links:focus{
+  text-decoration: underline;
+  color: rgb(255, 0, 170);
+}
