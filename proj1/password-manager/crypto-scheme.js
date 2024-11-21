@@ -52,7 +52,13 @@ const Password = {
    * @returns `Buffer` object of 32 byte/length.
    */
   GenKey : function(userPassword) {
-    return crypto.createHash('sha256').update(userPassword).digest();
+    
+    // const salt = crypto.randomBytes(16);
+    // const iterations = 100000;
+    // const keyLength = 32;
+    // const digest = 'sha256';
+    // return crypto.pbkdf2Sync(userPassword, salt, iterations, keyLength, digest);
+   return crypto.createHash('sha256').update(userPassword).digest();
   },
 
   /**
@@ -96,3 +102,5 @@ const Password = {
 };
 
 module.exports = Password;
+
+

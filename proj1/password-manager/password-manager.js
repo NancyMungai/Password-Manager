@@ -14,10 +14,10 @@ class Keychain {
         this.secrets = {};
     }
 
-    static async init(password) {
+    static async init(userPassword) {
         const keychain = new Keychain();
         const salt = getRandomBytes(16);
-        const passwordBuffer = stringToBuffer(password);
+        const passwordBuffer = stringToBuffer(userPassword);
 
         const baseKey = await subtle.importKey("raw", passwordBuffer, { name: "PBKDF2" }, false, ["deriveKey"]);
 
@@ -33,13 +33,13 @@ class Keychain {
         return keychain;
     }
 
-    static async load(password, repr, trustedDataCheck) {
+    static async load(userPassword, repr, trustedDataCheck) {
         const keychain = new Keychain();
         const parsedData = JSON.parse(repr);
         
         // Decode the stored salt from Base64
         const salt = decodeBuffer(parsedData.salt);
-        const passwordBuffer = stringToBuffer(password);
+        const passwordBuffer = stringToBuffer(userPassword);
         const baseKey = await subtle.importKey("raw", passwordBuffer, { name: "PBKDF2" }, false, ["deriveKey"]);
 
         // Derive the master key using PBKDF2 with the decoded salt

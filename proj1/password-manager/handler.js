@@ -56,7 +56,8 @@ const Handler = {
         // store in database
         let result = PrepStatement.AddUser.run(uid,salt,hash);
         res.code(200);
-        return res.renderHtml("Account sucessfully created",'login','Log-in now');
+         res.renderHtml("Account sucessfully created",'login','Log-in now');
+        return res.redirect('/login'); // Redirect to login page after showing the message
       } catch (err) {
         if(err.code==='SQLITE_CONSTRAINT_PRIMARYKEY') {
           res.code(400);

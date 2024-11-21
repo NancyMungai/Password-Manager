@@ -1,80 +1,127 @@
-*{
-  margin: 0px;
-  padding: 0px;
-  box-sizing:border-box;
-  font-family: 'Heebo', sans-serif;
-  /* font-family: sans-serif; */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
   outline: none;
 }
 
 .link-button {
   text-decoration: none;
-  color:black;
-  font-family: sans-serif;
-  font-weight:900 !important;
+  color: white;
+  font-family: Arial, sans-serif;
+  font-weight: bold;
   font-size: 0.8rem;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-body{
-  background-image: linear-gradient(200deg,#ffef12, rgb(230, 0, 69) 30%, #002fff);
+body {
+  background-color: white; /* Light blue background */
 }
 
-h1, h5, h6 {
-  color: white;
-  font-weight: bold ;
+h1,h2, h5, h6 {
+  color: black;
+  font-weight: bold;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-.main{
+
+.main {
   height: 100vh;
   text-align: center;
-  padding: 27px;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
   padding-top: 20vh;
+ 
 }
 
-.input-buttons{
+body {
+  background-color: white; /* Light blue background */
+  margin: 0;
+  height: 100vh; /* Full height of the viewport */
+  display: flex; /* Use flexbox to center content */
+  justify-content: center; /* Horizontally center */
+  align-items: center; /* Vertically center */
+}
+
+.main {
+  display: flex; /* Ensure the child (form) is centered */
+  justify-content: center; /* Horizontally center form */
+  align-items: center; /* Vertically center form */
+  width: 100%; /* Full width for alignment */
+}
+
+form {
+  background-color: white; /* White background for contrast */
+  border: 2px solid white; /* White border */
+  border-radius: 20px; /* Rounded corners */
+  padding: 20px 30px; /* Inner padding for spacing */
+  width: 100%;
+  max-width: 400px; /* Set a max width for the form */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow for elevation */
+  text-align: center; 
+}
+
+
+form {
+  background-color: white; /* White background for contrast */
+  border: 2px solid white; /* Blue border */
+  border-radius: 20px; /* Rounded corners */
+  padding: 20px 30px; /* Inner padding for spacing */
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow for elevation */
+  text-align: center; 
+}
+
+.input-buttons {
   display: flex;
   justify-content: space-between;
   flex-wrap: wrap;
 }
 
-.register-cred, .login-cred{
-  margin: 5vh 0px;
-  display:block;
-  height: 30px;
+.register-cred, .login-cred {
+  margin: 5vh 0;
+  display: block;
+  height: 40px;
   width: 100%;
-  border: black thin;
-  border-radius: 5px;
+  border: 1px solid #ccc; /* Light border for better aesthetics */
+  border-radius: 20px; 
   padding: 10px;
   font-size: 0.8rem;
   font-weight: bold;
   transition: ease 0.2s;
 }
 
-.register-cred:hover, .login-cred:hover{
-  outline: solid rgb(0, 0, 0) medium;
+.register-cred:hover, .login-cred:hover {
+  outline: none; /* Remove bold black outline */
+  border-color: #1E90FF; /* Slight blue border on hover */
 }
 
-.register-cred:focus, .login-cred:focus{
-  outline: solid rgb(24, 202, 0) medium;
+.register-cred:focus, .login-cred:focus {
+  outline: none; /* No outline on focus */
+  border: 2px solid #1874CD; /* Blue border for focus */
 }
 
-.lgn{
+.lgn {
   margin: 5vh auto;
   max-width: 400px;
 }
 
 .btn {
-  font-family: sans-serif;
-  background-color: white;
-  border: 1px rgb(255, 255, 255) solid;
-  border-radius: 4px;
-  height: 30px;
+  font-family: Arial, sans-serif;
+  font-weight: bold;
+  background-color: #1E90FF; /* Dodger blue */
+  border: none;
+  border-radius: 20px; /* Rounded corners */
+  height: 40px; /* Slightly taller buttons */
   width: 47%;
-  font-weight:900;
-  transition: ease 0.2s;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease-in-out;
 }
 
 .register {
@@ -82,25 +129,25 @@ h1, h5, h6 {
 }
 
 .btn:hover {
-  background-color: black;
+  background-color: #104E8B; /* Darker blue on hover */
   color: white;
 }
 
 .btn:active {
-  border: 3px rgb(24, 233, 24) solid;
+  background-color: #1874CD; /* Slightly lighter blue on active */
+  transform: scale(0.95); /* Shrink button slightly on click */
 }
 
 .btn:focus {
-  border: 3px rgb(255, 0, 157) solid;
-  color: rgb(255, 0, 157);
+  border: 2px solid white;
 }
 
-.links{
+.links {
   text-decoration: underline;
-  color: yellow;
+  color: #FFFFFF; /* White links */
 }
 
-.links:focus{
+.links:focus {
   text-decoration: underline;
-  color: rgb(255, 0, 170);
+  color: #FFD700; /* Gold */
 }
